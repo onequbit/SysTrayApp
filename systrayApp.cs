@@ -4,16 +4,18 @@ using System.Drawing;
 using System.ServiceProcess;
 using System.Threading;
 using System.Windows.Forms;
- 
-namespace MyTrayApp
+using FormApp = System.Windows.Forms.Application;
+
+namespace App
 {
     public class SysTrayApp : Form
     {
         private static Mutex mutex = null;
 
         [STAThread]
-        public static void Main()
+        public static void Main(string[] args)
         {
+            
             bool createdNew;
             string appName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;    
             mutex = new Mutex(true, appName, out createdNew);    
@@ -21,13 +23,13 @@ namespace MyTrayApp
             {                  
                 return;  
             }
-            Application.Run(new SysTrayApp());
+            
+            FormApp.Run(new SysTrayApp());
         }
- 
         private NotifyIcon  trayIcon;
         private ContextMenu trayMenu;
         private MenuItem trayExitItem;
- 
+
         public SysTrayApp()
         {
             trayExitItem = new System.Windows.Forms.MenuItem();            
@@ -45,19 +47,19 @@ namespace MyTrayApp
             trayIcon.ContextMenu = trayMenu;
             trayIcon.Visible     = true;
         }
- 
+
         protected override void OnLoad(EventArgs e)
         {
             Visible       = false; // Hide form window.
             ShowInTaskbar = false; // Remove from taskbar. 
             base.OnLoad(e);
         }
- 
+
         private void ExitHandler(object sender, EventArgs e)
         {            
             Application.Exit();
         }
- 
+
         protected override void Dispose(bool isDisposing)
         {
             if (isDisposing)
@@ -113,4 +115,13 @@ namespace MyTrayApp
         }
 
     }
+
+    // public static class ExtensionMethods
+    // {
+    //     public static bool SetHighDpiMode(System.Windows.Forms.HighDpiMode mode)
+    //     {
+    //         return false;
+    //     }
+    // }
+
 }
