@@ -4,7 +4,7 @@ using System.Drawing;
 using System.ServiceProcess;
 using System.Threading;
 using System.Windows.Forms;
-using FormApp = System.Windows.Forms.Application;
+using WinFormsApp = System.Windows.Forms.Application;
 
 namespace App
 {
@@ -24,7 +24,7 @@ namespace App
                 return;  
             }
             
-            FormApp.Run(new SysTrayApp());
+            WinFormsApp.Run(new SysTrayApp());
         }
         private NotifyIcon  trayIcon;
         private ContextMenu trayMenu;
