@@ -1,3 +1,5 @@
 *.exe
 *.pfx
 *.snk
+*.trace
+*.log
