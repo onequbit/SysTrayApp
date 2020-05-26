@@ -4,7 +4,7 @@
 ---
 This tool is intended to allow you to view the status of one or more Windows Services, and provide an easy way to start or stop them.
 
-This application requires administrator rights in order to run.
+This application requests administrator rights via UAC when it starts.
 
 Double-click on the icon to show the status(es).
 
