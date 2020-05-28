@@ -24,30 +24,23 @@ namespace Library
 
         public static void ToggleService(string name)
         {
-            try
+            WindowsIdentity identity = WindowsIdentity.GetCurrent();
+            using (WindowsImpersonationContext context = identity.Impersonate())
             {
-                WindowsIdentity identity = WindowsIdentity.GetCurrent();
-                using (WindowsImpersonationContext context = identity.Impersonate())
+                ServiceController service = new ServiceController(name);
+                if (service.Status == ServiceControllerStatus.Running)
                 {
-                    ServiceController service = new ServiceController(name);
-                    if (service.Status == ServiceControllerStatus.Running)
-                    {
-                        service.Stop();            
-                        service.WaitForStatus(ServiceControllerStatus.Stopped);
-                        return;
-                    }
-                    if (service.Status == ServiceControllerStatus.Stopped)
-                    {
-                        service.Start();            
-                        service.WaitForStatus(ServiceControllerStatus.Running);
-                        return;
-                    }                
+                    service.Stop();            
+                    service.WaitForStatus(ServiceControllerStatus.Stopped);
+                    return;
                 }
-            }
-            catch (Exception ex)
-            {
-                
-            }
+                if (service.Status == ServiceControllerStatus.Stopped)
+                {
+                    service.Start();            
+                    service.WaitForStatus(ServiceControllerStatus.Running);
+                    return;
+                }                
+            }            
         }
 
         
