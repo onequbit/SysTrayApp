@@ -24,22 +24,29 @@ namespace Library
 
         public static void ToggleService(string name)
         {
-            WindowsIdentity identity = WindowsIdentity.GetCurrent();
-            using (WindowsImpersonationContext context = identity.Impersonate())
+            try
             {
-                ServiceController service = new ServiceController(name);
-                if (service.Status == ServiceControllerStatus.Running)
+                WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                using (WindowsImpersonationContext context = identity.Impersonate())
                 {
-                    service.Stop();            
-                    service.WaitForStatus(ServiceControllerStatus.Stopped);
-                    return;
+                    ServiceController service = new ServiceController(name);
+                    if (service.Status == ServiceControllerStatus.Running)
+                    {
+                        service.Stop();            
+                        service.WaitForStatus(ServiceControllerStatus.Stopped);
+                        return;
+                    }
+                    if (service.Status == ServiceControllerStatus.Stopped)
+                    {
+                        service.Start();            
+                        service.WaitForStatus(ServiceControllerStatus.Running);
+                        return;
+                    }                
                 }
-                if (service.Status == ServiceControllerStatus.Stopped)
-                {
-                    service.Start();            
-                    service.WaitForStatus(ServiceControllerStatus.Running);
-                    return;
-                }                
+            }
+            catch (Exception ex)
+            {
+                
             }
         }
 
@@ -74,7 +81,7 @@ namespace Library
             }
             catch
             {
-                status = "unknown - service not found";
+                status = "error";
             }
             return status;
         }
@@ -93,39 +100,32 @@ namespace Library
         {
             return ServiceTools.GetWindowsServiceStatus(name).Equals("Running");
         }
-    }
 
-    public static class ExtensionMethods
-    {
-        private static Mutex mutex = null;
-
-        public static void SingleInstance(this System.Windows.Forms.Form formApp)
+        public static Dictionary<string,string> ServiceNamesLookup
         {
-            bool createdNew;
-            string appName = System.Reflection.Assembly.GetExecutingAssembly().GetName().Name;    
-            mutex = new Mutex(true, appName, out createdNew);    
-            if (!createdNew)  
-            {                  
-                formApp.Close();
+            get 
+            {
+                Dictionary<string,string> names = new Dictionary<string,string>{};
+                ServiceController[] services = ServiceController.GetServices();
+                foreach (ServiceController service in services)
+                {
+                    names[service.ServiceName] = service.DisplayName;
+                    names[service.DisplayName] = service.ServiceName;
+                }
+                return names;
             }
         }
 
-        public static Icon GetCurrentIcon(this System.Windows.Forms.Form formApp)
+        public static Dictionary<string,string> TOGGLE 
         {
-            return Icon.ExtractAssociatedIcon(System.Reflection.Assembly.GetExecutingAssembly().Location);
-        }
-
-        public static void Run(this System.Windows.Forms.Form app)
-        {
-            System.Windows.Forms.Application.Run(app);
-        }
-
-        public static void ShowInfoBalloon(this NotifyIcon icon, string message, int timeout = 8192)
-        {
-            icon.BalloonTipIcon = ToolTipIcon.Info;
-            icon.BalloonTipTitle = "";               
-            icon.BalloonTipText = message;
-            icon.ShowBalloonTip(timeout);
-        }
+            get {
+                return new Dictionary<string, string>
+                {
+                    ["Running"] = "Stop",
+                    ["Stopped"] = "Start",
+                    ["error"] = "error"
+                };
+            }
+        }      
     }
 }

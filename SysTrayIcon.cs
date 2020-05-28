@@ -10,81 +10,68 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using WinFormsApp = System.Windows.Forms.Application;
 
-namespace App
+namespace Library
 {
     
     public class SysTrayIcon : Form
-    {        
-        private bool appRunning;
+    {                
+        
         private NotifyIcon  trayIcon;
-
-        private const int BALLOON_TIMEOUT = 8192;
-
-        private Dictionary<string,string> TOGGLE 
-        {
-            get {
-                return new Dictionary<string, string>
-                {
-                    ["Running"] = "Stop",
-                    ["Stopped"] = "Start"
-                };
-            }
-        }
 
         private ContextMenu trayMenu;
         
         private string[] serviceNames;
 
+        private SysTrayOption[] OptionsList;
+
         private Dictionary<string, string> serviceStatuses;
 
-        public SysTrayIcon(string[] services)
-        {
-            appRunning = true;
-            serviceNames = services;
+        public SysTrayIcon(SysTrayOption[] optionsList)
+        {            
+            OptionsList = optionsList;
+            serviceNames = OptionsList.GetServiceNames();
             serviceStatuses = ServiceTools.GetWindowsServicesStatuses(serviceNames);
-            Task.Run(()=>serviceMonitorLoop());
-
-            trayMenu = new ContextMenu();            
-            trayMenu.MenuItems.Add(new MenuItem("E&xit", exitHandler));
-            trayMenu.MenuItems[0].DefaultItem = true;
-            trayMenu.MenuItems.AddRange(buildMenuItems(serviceNames));
-            trayMenu.Popup += popupHandler;
-
-            trayIcon = new NotifyIcon();            
-            trayIcon.Text = "double click for info";
-            trayIcon.Icon = new Icon("onequbit.ico");
-            trayIcon.DoubleClick  += showServicesStatus; 
-            
-            trayIcon.ContextMenu = trayMenu;
-            trayIcon.Visible     = true;
-
+            trayMenu = initContextMenu();           
+            trayIcon = initNotifyIcon();                        
         }
 
-        private MenuItem[] buildMenuItems(string[] names)
+        private ContextMenu initContextMenu()
+        {
+            ContextMenu menu = new ContextMenu();
+            menu.MenuItems.AddRange(buildMenuItems(OptionsList));
+            menu.Popup += popupHandler; 
+            return menu;
+        }
+
+        private NotifyIcon initNotifyIcon()
+        {
+            NotifyIcon icon = new NotifyIcon()
+            {
+                Text = "double click for info",
+                Icon = this.GetCurrentIcon(),              
+                ContextMenu = trayMenu,
+                Visible = true
+            };
+            icon.DoubleClick += showServicesStatus;
+            return icon;
+        }
+
+        private MenuItem[] buildMenuItems(SysTrayOption[] options)
         {
             List<MenuItem> items = new List<MenuItem>{};
-            foreach(string name in names)
+            MenuItem defaultExit = new MenuItem("E&xit", exitHandler);
+            defaultExit.DefaultItem = true;
+            items.Add(defaultExit);            
+            foreach(SysTrayOption option in options)
             {
-                string menuOption = setServiceOption(name);
-                items.Add(new MenuItem(menuOption, (object o,EventArgs e) => ServiceTools.ToggleService(name)));
+                MenuItem item = option.ToMenuItem();
+                if (option.isService)
+                {
+                    item.Click += showServicesStatus;
+                }
+                items.Add(item);
             }
             return items.ToArray();
-        }
-
-        private string setServiceOption(string serviceName)
-        {
-            string serviceToggle = TOGGLE[serviceStatuses[serviceName]];
-            return $"{serviceName} : {serviceToggle}";
-        }
-
-        private void updateMenuOptions()
-        {
-            foreach(MenuItem item in trayMenu.MenuItems)
-            {
-                string name = item.Text.Split(' ')[0];
-                if (serviceNames.Contains(name))                
-                    item.Text = setServiceOption(name);
-            }
         }
 
         protected override void OnLoad(EventArgs e)
@@ -104,28 +91,23 @@ namespace App
         }
 
         private void exitHandler(object o, EventArgs e)
-        {
-            appRunning = false;
+        {            
             Application.Exit();
         }
 
         private void popupHandler(object o, EventArgs e)
         {
-            updateMenuOptions();
-        }
-
-        private void serviceMonitorLoop()
-        {
-            while (appRunning)
-            {
-                serviceStatuses = ServiceTools.GetWindowsServicesStatuses(serviceNames);
-                Thread.Sleep(1000);
-            }
+            trayMenu.MenuItems.Clear();
+            trayMenu.MenuItems.AddRange(buildMenuItems(OptionsList));
         }
 
         private void showServicesStatus(object sender, EventArgs e)
-        {            
+        {
+            bool cancelEvent = OptionsList.CancelOnError();
+            if (cancelEvent) return;
+
             string statusText = "";
+            serviceStatuses = OptionsList.GetServiceStatuses();
             foreach (string service in serviceNames)
             {
                 string status = serviceStatuses[service];

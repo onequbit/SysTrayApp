@@ -1,0 +1,52 @@
+
+using Library;
+using System;
+using System.Configuration;
+using System.Drawing;
+using System.Windows.Forms;
+
+namespace App
+{
+    public class Program
+    {
+
+        [STAThread] // required for Windows Forms
+        public static void Main(string[] args)
+        {            
+            
+
+            if (ConfigurationManager.AppSettings["servicename"] != null)
+            {                
+                trayIcon.ShowInfoBalloon("hello world! - found");
+            } else
+            {
+                trayIcon.ShowInfoBalloon("hello world! - not found");
+            }
+        }
+    }    
+
+    public class Foo
+    {
+        private NotifyIcon trayIcon;
+        public Foo()
+        {
+            trayIcon = new NotifyIcon();
+        }
+        
+        protected override void OnLoad(EventArgs e)
+        {
+            Visible       = false; // Hide form window.
+            ShowInTaskbar = false; // Remove from taskbar. 
+            base.OnLoad(e);
+        }
+
+        protected override void Dispose(bool isDisposing)
+        {
+            if (isDisposing)
+            {                
+                trayIcon.Dispose();
+            } 
+            base.Dispose(isDisposing);
+        }
+    }
+}
