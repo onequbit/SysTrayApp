@@ -5,108 +5,32 @@ using System.ServiceProcess;
 using System.Security.Principal;
 using System.Threading;
 using System.Windows.Forms;
+using scs = System.ServiceProcess.ServiceControllerStatus;
 
 namespace Library
 {
 
-    public class ServiceTools
+    public static class ServiceTools
     {
-        public static void StopService(string name)
+        public static ServiceController[] AllServices
         {
-            WindowsIdentity identity = WindowsIdentity.GetCurrent();
-            using (WindowsImpersonationContext context = identity.Impersonate())
+            get
             {
-                ServiceController service = new ServiceController(name);
-                service.Stop();            
-                service.WaitForStatus(ServiceControllerStatus.Stopped);            
+                return ServiceController.GetServices();
             }
         }
 
-        public static void ToggleService(string name)
+        public static string[] ServiceNames
         {
-            WindowsIdentity identity = WindowsIdentity.GetCurrent();
-            using (WindowsImpersonationContext context = identity.Impersonate())
+            get
             {
-                ServiceController service = new ServiceController(name);
-                if (service.Status == ServiceControllerStatus.Running)
-                {
-                    service.Stop();            
-                    service.WaitForStatus(ServiceControllerStatus.Stopped);
-                    return;
-                }
-                if (service.Status == ServiceControllerStatus.Stopped)
-                {
-                    service.Start();            
-                    service.WaitForStatus(ServiceControllerStatus.Running);
-                    return;
-                }                
+                return ServiceTools.AllServices.ToNames();
             }            
         }
 
-        
-        public static string GetWindowsServiceStatus(string name)
+        public static bool CheckIsService(string name)        
         {
-            string status = "";
-            try
-            {
-                ServiceController sc = new ServiceController(name);
-                switch (sc.Status)
-                {
-                    case ServiceControllerStatus.Running:
-                        status = "Running";
-                        break;
-                    case ServiceControllerStatus.Stopped:
-                        status = "Stopped";
-                        break;
-                    case ServiceControllerStatus.Paused:
-                        status = "Paused";
-                        break;
-                    case ServiceControllerStatus.StopPending:
-                        status = "Stopping";
-                        break;
-                    case ServiceControllerStatus.StartPending:
-                        status = "Starting";
-                        break;
-                    default:
-                        status = "Status ?...";
-                        break;
-                }
-            }
-            catch
-            {
-                status = "error";
-            }
-            return status;
-        }
-
-        public static Dictionary<string,string> GetWindowsServicesStatuses(string[] names)
-        {
-            Dictionary<string,string> statuses = new Dictionary<string, string>{};
-            foreach (string service in names) 
-            {
-                statuses[service] = ServiceTools.GetWindowsServiceStatus(service);                
-            }
-            return statuses;
-        }
-
-        public static bool IsRunning(string name)
-        {
-            return ServiceTools.GetWindowsServiceStatus(name).Equals("Running");
-        }
-
-        public static Dictionary<string,string> ServiceNamesLookup
-        {
-            get 
-            {
-                Dictionary<string,string> names = new Dictionary<string,string>{};
-                ServiceController[] services = ServiceController.GetServices();
-                foreach (ServiceController service in services)
-                {
-                    names[service.ServiceName] = service.DisplayName;
-                    names[service.DisplayName] = service.ServiceName;
-                }
-                return names;
-            }
+            return ServiceTools.ServiceNames.Contains(name);            
         }
 
         public static Dictionary<string,string> TOGGLE 
@@ -121,4 +45,58 @@ namespace Library
             }
         }      
     }
+
+    public static partial class ExtensionMethods
+    {                 
+        public static string ToString(this scs status)
+        {            
+            switch (status)
+            {
+                case scs.Stopped : return "Stopped";
+                case scs.StartPending : return "StartPending";
+                case scs.StopPending : return "Stopped";
+                case scs.Running : return "StartPending";
+                case scs.ContinuePending : return "Stopped";
+                case scs.PausePending : return "StartPending";
+                case scs.Paused : return "Stopped";                
+                default: return "error";
+            }
+        }
+
+        public static bool IsRunning(this ServiceController service)
+        {
+            return service.Status == scs.Running;
+        }
+
+        public static bool IsStopped(this ServiceController service)
+        {
+            return service.Status == scs.Stopped;
+        }
+
+        public static bool ToggleStatus(this ServiceController service)
+        {            
+            try
+            {
+                WindowsIdentity identity = WindowsIdentity.GetCurrent();
+                using (WindowsImpersonationContext context = identity.Impersonate())
+                {                
+                    if (service.IsRunning())
+                    {
+                        service.Stop();            
+                        service.WaitForStatus(scs.Stopped);
+                        return true;
+                    }                     
+                    if (service.IsStopped())
+                    {
+                        service.Start();            
+                        service.WaitForStatus(scs.Running);
+                        return true;
+                    }                
+                    
+                } 
+            }
+            catch { }
+            return false;
+        }
+    } 
 }

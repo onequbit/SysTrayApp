@@ -2,9 +2,11 @@ using Library;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.ServiceProcess;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -14,64 +16,52 @@ namespace Library
 {
     
     public class SysTrayIcon : Form
-    {                
-        
-        private NotifyIcon  trayIcon;
+    {         
+        private NotifyIcon  notifyIcon;
+        private ContextMenu trayMenu;        
+        private List<SysTrayOption> sysTrayOptions;
+        private List<MenuItem> defaultMenuItems;
 
-        private ContextMenu trayMenu;
-        
-        private string[] serviceNames;
-
-        private SysTrayOption[] OptionsList;
-
-        private Dictionary<string, string> serviceStatuses;
-
-        public SysTrayIcon(SysTrayOption[] optionsList)
+        public SysTrayIcon()
         {            
-            OptionsList = optionsList;
-            serviceNames = OptionsList.GetServiceNames();
-            serviceStatuses = ServiceTools.GetWindowsServicesStatuses(serviceNames);
-            trayMenu = initContextMenu();           
-            trayIcon = initNotifyIcon();                        
-        }
-
-        private ContextMenu initContextMenu()
-        {
-            ContextMenu menu = new ContextMenu();
-            menu.MenuItems.AddRange(buildMenuItems(OptionsList));
-            menu.Popup += popupHandler; 
-            return menu;
-        }
-
-        private NotifyIcon initNotifyIcon()
-        {
-            NotifyIcon icon = new NotifyIcon()
+            try
             {
-                Text = "double click for info",
-                Icon = this.GetCurrentIcon(),              
-                ContextMenu = trayMenu,
-                Visible = true
-            };
-            icon.DoubleClick += showServicesStatus;
-            return icon;
-        }
+                this.trayMenu = new ContextMenu();                
+                MenuItem defaultExit = new MenuItem("E&xit", (o,e)=> Application.Exit());
+                defaultExit.DefaultItem = true;
+                this.defaultMenuItems = new List<MenuItem> {};
+                this.defaultMenuItems.Add(defaultExit);
+                this.sysTrayOptions = new List<SysTrayOption> {};
+                this.trayMenu.Popup += popupHandler;            
 
-        private MenuItem[] buildMenuItems(SysTrayOption[] options)
-        {
-            List<MenuItem> items = new List<MenuItem>{};
-            MenuItem defaultExit = new MenuItem("E&xit", exitHandler);
-            defaultExit.DefaultItem = true;
-            items.Add(defaultExit);            
-            foreach(SysTrayOption option in options)
-            {
-                MenuItem item = option.ToMenuItem();
-                if (option.isService)
-                {
-                    item.Click += showServicesStatus;
-                }
-                items.Add(item);
+                this.notifyIcon = new NotifyIcon();                            
+                this.notifyIcon.Icon = this.GetCurrentIcon();
+                this.notifyIcon.ContextMenu = trayMenu;
+                this.notifyIcon.Visible = true;
             }
-            return items.ToArray();
+            catch (Exception ex)
+            {
+                ex.ToMessageBox("SysTrayIcon() -> constructor failed");
+            }                                   
+        }
+
+        public SysTrayIcon(EventHandler doubleClickHandler) : this()
+        {
+            this.notifyIcon.Text = "double click for info";
+            this.notifyIcon.DoubleClick += doubleClickHandler;
+        }                
+
+        public SysTrayIcon(List<SysTrayOption> customOptions, EventHandler doubleClickHandler) :this(doubleClickHandler)
+        {
+            try
+            {                
+                this.sysTrayOptions.AddRange(customOptions);
+                this.sysTrayOptions.AttachToParent(this);
+            }
+            catch (Exception ex)
+            {
+                ex.ToMessageBox("failed to instantiate SysTrayIcon()");
+            }
         }
 
         protected override void OnLoad(EventArgs e)
@@ -85,35 +75,24 @@ namespace Library
         {
             if (isDisposing)
             {                
-                trayIcon.Dispose();
+                notifyIcon.Dispose();
             } 
             base.Dispose(isDisposing);
         }
 
-        private void exitHandler(object o, EventArgs e)
+        private void popupHandler(object sender, EventArgs e)
+        {
+            this.trayMenu.MenuItems.Clear();
+            this.trayMenu.MenuItems.AddRange(this.defaultMenuItems.ToArray());            
+            this.trayMenu.MenuItems.AddRange(this.sysTrayOptions.ToMenuItems().ToArray());
+        }
+
+        public void ShowInfoBalloon(string title, string message, int timeout = 8192)
         {            
-            Application.Exit();
-        }
-
-        private void popupHandler(object o, EventArgs e)
-        {
-            trayMenu.MenuItems.Clear();
-            trayMenu.MenuItems.AddRange(buildMenuItems(OptionsList));
-        }
-
-        private void showServicesStatus(object sender, EventArgs e)
-        {
-            bool cancelEvent = OptionsList.CancelOnError();
-            if (cancelEvent) return;
-
-            string statusText = "";
-            serviceStatuses = OptionsList.GetServiceStatuses();
-            foreach (string service in serviceNames)
-            {
-                string status = serviceStatuses[service];
-                statusText += $"{service} is {status}\n";
-            }                        
-            trayIcon.ShowInfoBalloon(statusText);
+            this.notifyIcon.BalloonTipIcon = ToolTipIcon.Info;
+            this.notifyIcon.BalloonTipTitle = title;               
+            this.notifyIcon.BalloonTipText = message;
+            this.notifyIcon.ShowBalloonTip(timeout);
         }
     }
 }
