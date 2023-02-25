@@ -7,6 +7,7 @@ using System.Configuration;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.ServiceProcess;
 using System.Text;
 using System.Windows.Forms;
@@ -24,8 +25,17 @@ namespace App
         public Program()
         {
             try
-            {                
+            {                                
                 this.sysTrayOptions = optionsFileName.ReadFileAsStringList().ToSysTrayOptions();
+                this.sysTrayOptions.Add(new SysTrayOption("View Boot Loader", () => {
+                    BCDInformation.InfoBalloonCurrentLoader(trayIcon.notifyIcon);
+                    // MessageBox.Show("Got data");                    
+                    // BcdObject current = bcdInfo.GetCurrent();
+                    // MessageBox.Show("Got current");                    
+                    // MessageBox.Show($"Is Empty: {BcdObject.IsEmpty(current)}");
+                    // MessageBox.Show(current.ToString());
+                    // // this.trayIcon.ShowInfoBalloon("Boot Loader:", "got foo");
+                }));
                 this.trayIcon = new SysTrayIcon(this.sysTrayOptions, showServicesStatus);                
             }
             catch (Exception ex)
@@ -41,7 +51,8 @@ namespace App
 
         [STAThread] // required for Windows Forms
         public static void Main(string[] args)
-        {               
+        {
+            // args.CheckForKillSignal();
             new Program().Go();
         }
 

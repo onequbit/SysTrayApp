@@ -1,3 +1,4 @@
 "vmcompute"
-"VirtualBox","C:\\Program Files\\Oracle\\VirtualBox\\VirtualBox.exe"
-"Show Boot Mode","bcdedit"
+"Windows Terminal","wt cmd"
+"PowerShell","wt pwsh"
+"BCDEdit Info","cmd.exe /k BCDEdit /enum"

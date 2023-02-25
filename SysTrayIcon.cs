@@ -17,7 +17,7 @@ namespace Library
     
     public class SysTrayIcon : Form
     {         
-        private NotifyIcon  notifyIcon;
+        public NotifyIcon notifyIcon;
         private ContextMenu trayMenu;        
         private List<SysTrayOption> sysTrayOptions;
         private List<MenuItem> defaultMenuItems;

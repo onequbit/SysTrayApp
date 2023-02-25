@@ -14,7 +14,8 @@ namespace Library
     public enum OptionTypeEnum
     {
         Service,
-        Command
+        Command,
+        Function
     }
 
     public class SysTrayOption
@@ -27,6 +28,22 @@ namespace Library
             get
             {
                 return this.OptionType == OptionTypeEnum.Service;
+            }
+        }
+
+        public bool IsCommand
+        {
+            get
+            {
+                return this.OptionType == OptionTypeEnum.Command;
+            }
+        }
+
+        public bool IsFunction
+        {
+            get
+            {
+                return this.OptionType == OptionTypeEnum.Function;
             }
         }
 
@@ -88,6 +105,8 @@ namespace Library
 
         public SysTrayIcon ParentIcon { get; set; }
 
+        private Action appFunction;
+
         public SysTrayOption(string optionString)
         {
             try
@@ -96,10 +115,23 @@ namespace Library
                 {
                     initAsService(optionString);
                 }
-                else
+                else                
                 {
                     initAsCommand(optionString);
                 }
+            }
+            catch (Exception ex)
+            {
+                this.ErrorHandler(ex, $"failed to create SysTrayOption {optionString}");
+                throw;
+            }
+        }
+
+        public SysTrayOption(string optionString, Action somethingToDo)
+        {
+            try
+            {
+                initAsFunction(optionString, somethingToDo);                
             }
             catch (Exception ex)
             {
@@ -134,12 +166,35 @@ namespace Library
                     throw new Exception($"unable to parse command option from '{optionString}'");
                 this.OptionType = OptionTypeEnum.Command;                    
                 this.DisplayName = parts[0].NoParens();
-                if (parts[1].Split(' ').Length == 1) this.CommandStr = parts[1].NoParens();
-                    else this.CommandStr = parts[1];
+                this.CommandStr = parts[1]; 
             }
             catch (Exception ex)
             {
                 this.ErrorHandler(ex, $"failed to attach Command '{optionString}' to SysTrayOption()");
+                throw;
+            }            
+        }
+
+        private void initAsFunction(string optionString, Action somethingToDo)
+        {
+            try 
+            {                
+                this.OptionType = OptionTypeEnum.Function;
+                this.DisplayName = optionString;
+                this.appFunction = () => {
+                    try
+                    {
+                        somethingToDo();
+                    }
+                    catch (Exception ex)
+                    {
+                        this.ErrorHandler(ex, $"Option '{optionString}' failed");        
+                    }                    
+                };
+            }
+            catch (Exception ex)
+            {
+                this.ErrorHandler(ex, $"failed to attach '{optionString}' action to SysTrayOption()");
                 throw;
             }            
         }
@@ -154,10 +209,16 @@ namespace Library
                 item.Click += (o,e) => TryServiceToggle();
             }
             else
+            if (OptionType == OptionTypeEnum.Command)
             {
                 item.Text = this.DisplayName;
-                Process proc = new Process().ToRunAsAdmin(this.CommandStr);                
-                item.Click += (object o, EventArgs e) => proc.Start();
+                Process proc = new Process().ToRunAsAdmin(this.CommandStr);                                
+                item.Click += (object o, EventArgs e) => { proc.Start(); };                
+            }
+            else
+            {
+                item.Text = this.DisplayName;                
+                item.Click += (object o, EventArgs e) => { this.appFunction(); };                
             }             
             item.Enabled = this.Status != "error";
             return item;
@@ -195,7 +256,7 @@ namespace Library
         {
             if (this.ParentIcon != null)
             {
-                this.ParentIcon.ShowInfoBalloon("Error:", message);
+                this.ParentIcon.ShowInfoBalloon("Error:", $"{message}\n{ex.StackTrace}");
             }
             else 
             {

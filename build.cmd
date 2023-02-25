@@ -1,6 +1,9 @@
 @echo off
 call clean.cmd
+call define.cmd
 sn -k keyfile.snk
-csc -target:winexe -win32icon:onequbit.ico -win32manifest:app.manifest /keyfile:keyfile.snk ExtensionMethods.cs ServiceTools.cs SysTray*.cs
+csc %compileoptions% %buildfiles%
 if %errorlevel% neq 0 exit /b %errorlevel%
 del keyfile.snk
+call signit.cmd
+copy /y %outfile% ..\ToolBin
